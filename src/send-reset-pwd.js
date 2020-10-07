@@ -21,6 +21,12 @@ async function sendResetPwd (options, identifyUser, notifierOptions, field) {
   const users = await usersService.find({ query: identifyUser });
   const user1 = getUserData(users, options.skipIsVerifiedCheck ? [] : ['isVerified']);
 
+  // Reusing existing reset token if it's not expiring soon
+  if (options.reuseResetToken && user1.resetExpires > Date.now() + options.resetDelay / 2) {
+    await notifier(options.notifier, 'sendResetPwd', user1, notifierOptions);
+    return options.sanitizeUserForClient(user1);
+  }
+
   const user2 = Object.assign(user1, {
     resetExpires: Date.now() + options.resetDelay,
     resetToken: concatIDAndHash(user1[usersServiceIdName], await getLongToken(options.longTokenLen)),
@@ -30,8 +36,14 @@ async function sendResetPwd (options, identifyUser, notifierOptions, field) {
   await notifier(options.notifier, 'sendResetPwd', user2, notifierOptions);
   const user3 = await usersService.patch(user2[usersServiceIdName], {
     resetExpires: user2.resetExpires,
-    resetToken: await hashPassword(options.app, user2.resetToken, field),
-    resetShortToken: await hashPassword(options.app, user2.resetShortToken, field)
+    resetToken:
+      options.reuseResetToken ?
+        user2.resetToken :
+        await hashPassword(options.app, user2.resetToken, field),
+    resetShortToken:
+      options.reuseResetToken ?
+        user2.resetShortToken :
+        await hashPassword(options.app, user2.resetShortToken, field)
   });
 
   return options.sanitizeUserForClient(user3);
