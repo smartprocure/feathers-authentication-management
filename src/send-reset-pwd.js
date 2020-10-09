@@ -21,8 +21,13 @@ async function sendResetPwd (options, identifyUser, notifierOptions, field) {
   const users = await usersService.find({ query: identifyUser });
   const user1 = getUserData(users, options.skipIsVerifiedCheck ? [] : ['isVerified']);
 
-  // Reusing existing reset token if it's not expiring soon
-  if (options.reuseResetToken && user1.resetExpires > Date.now() + options.resetDelay / 2) {
+  if (
+    // Reusing existing reset token if it's not expiring soon
+    options.reuseResetToken
+    && user1.resetToken
+    && user1.resetToken.includes('___')
+    && user1.resetExpires > Date.now() + options.resetDelay / 2
+  ) {
     await notifier(options.notifier, 'sendResetPwd', user1, notifierOptions);
     return options.sanitizeUserForClient(user1);
   }

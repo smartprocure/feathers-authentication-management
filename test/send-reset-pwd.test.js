@@ -139,8 +139,87 @@ const users_Id = [
 
             assert.strictEqual(result.isVerified, true, 'isVerified not true');
             assert.strictEqual(result.resetToken, undefined, 'resetToken not undefined');
-            assert.strictEqual(result.resetShortToken, undefined, 'resetToken not undefined');
+            assert.strictEqual(result.resetShortToken, undefined, 'resetShortToken not undefined');
             assert.strictEqual(result.resetExpires, undefined, 'resetExpires not undefined');
+          } catch (err) {
+            console.log(err);
+            assert(false, 'err code set');
+          }
+        });
+      });
+
+      describe('length can change (digits)', () => {
+        let app;
+        let usersService;
+        let authLocalMgntService;
+        let db;
+        let result;
+
+        beforeEach(async () => {
+          app = feathers();
+          app.use('/authentication', authService(app));
+
+          app.configure(
+            makeUsersService({
+              id: idType,
+              paginate: pagination === 'paginated'
+            })
+          );
+          app.configure(
+            authLocalMgnt({
+              resetDelay: 2000,
+              reuseResetToken: true,
+            })
+          );
+          app.setup();
+          authLocalMgntService = app.service('authManagement');
+
+          usersService = app.service('users');
+          await usersService.remove(null);
+          db = clone(idType === '_id' ? users_Id : usersId);
+          await usersService.create(db);
+        });
+
+        it('token is reusable with options.reuseResetToken', async function () {
+          try {
+            result = await authLocalMgntService.create({
+              action: 'sendResetPwd',
+              value: { email: 'b' }
+            });
+            const user1 = await usersService.get(result.id || result._id);
+            result = await authLocalMgntService.create({
+              action: 'sendResetPwd',
+              value: { email: 'b' }
+            });
+            const user2 = await usersService.get(result.id || result._id);
+
+            assert.equal(user1.resetToken, user2.resetToken, 'reset token has changed');
+            assert.equal(user1.resetShortToken, user2.resetShortToken, 'reset short token has changed');
+            assert.equal(user1.resetExpires, user2.resetExpires, 'reset expires wrong has changed');
+          } catch (err) {
+            console.log(err);
+            assert(false, 'err code set');
+          }
+        });
+
+        it('token is not reused after half reset time', async function () {
+          try {
+            result = await authLocalMgntService.create({
+              action: 'sendResetPwd',
+              value: { email: 'b' }
+            });
+            const user1 = await usersService.get(result.id || result._id);
+
+            await new Promise(resolve => setTimeout(resolve, 1010));
+            result = await authLocalMgntService.create({
+              action: 'sendResetPwd',
+              value: { email: 'b' }
+            });
+            const user2 = await usersService.get(result.id || result._id);
+
+            assert.notEqual(user1.resetToken, user2.resetToken, 'reset token has not changed');
+            assert.notEqual(user1.resetShortToken, user2.resetShortToken, 'reset short token has not changed');
+            assert.notEqual(user1.resetExpires, user2.resetExpires, 'reset expires wrong has not changed');
           } catch (err) {
             console.log(err);
             assert(false, 'err code set');
