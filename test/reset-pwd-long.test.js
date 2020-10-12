@@ -420,7 +420,7 @@ const usersId = [
           app.configure(
             authLocalMgnt({
               notifier: spyNotifier.callWith,
-              expireOnFailedAttempt: false,
+              removeTokenOnError: false,
               testMode: true
             })
           );

@@ -73,7 +73,7 @@ async function resetPassword (options, query, tokens, password, field) {
   try {
     await Promise.all(tokenChecks);
   } catch (err) {
-    if (options.expireOnFailedAttempt) {
+    if (options.removeTokenOnError) {
       await usersService.patch(user1[usersServiceIdName], {
         resetToken: null,
         resetShortToken: null,
