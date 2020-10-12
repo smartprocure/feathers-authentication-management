@@ -50,18 +50,16 @@ async function resetPassword (options, query, tokens, password, field) {
   const checkProps = options.skipIsVerifiedCheck ? ['resetNotExpired'] : ['resetNotExpired', 'isVerified'];
   const user1 = getUserData(users, checkProps);
 
-  const incorrectError = () =>
-    new errors.BadRequest('Reset Token is incorrect. (authLocalMgnt)', {
-      errors: {$className: 'incorrectToken'}
-    });
-
   const tokenChecks = Object.keys(tokens).map(key =>
     // Comparing token directly for options.reuseResetToken
     tokens[key] === user1[key] ||
     comparePasswords(
       tokens[key],
       user1[key],
-      incorrectError
+      () =>
+        new errors.BadRequest('Reset Token is incorrect. (authLocalMgnt)', {
+          errors: {$className: 'incorrectToken'}
+        })
     )
   );
 
